@@ -106,6 +106,7 @@
 
         let strings = [];
         const maxStrings = 6;
+   const SPEED_MULTIPLIER = 1.3; // try 1.5–3
 
         class AccretionString {
             constructor(delay) {
@@ -116,7 +117,8 @@
                 this.z = -150;
                 
                 // Orbital parameters
-                this.orbitSpeed = 0.02 + Math.random() * 0.01;
+                this.orbitSpeed = (0.02 + Math.random() * 0.01) * SPEED_MULTIPLIER;
+
                 this.targetRadius = 40 + Math.random() * 80;
                 this.currentRadius = this.radius;
                 
