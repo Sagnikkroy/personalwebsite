@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sagnik Roy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #ffffff;
+            overflow-x: hidden;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .hero {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            color: #fff;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(255, 100, 0, 0.8);
+            animation: fadeIn 2s ease-in 2s forwards;
+            opacity: 0;
+        }
+
+        p {
+            font-size: 1.5rem;
+            color: #aaa;
+            animation: fadeIn 2s ease-in 2.5s forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            p {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <canvas id="canvas"></canvas>
+        <div class="content">
+            <h1></h1>
+            <p>Sagnik Roy</p>
+        </div>
+    </section>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        let strings = [];
+        const maxStrings = 6;
+
+        class AccretionString {
+            constructor(delay) {
+                // Start from top of screen at random x position
+                this.startX = Math.random() * canvas.width;
+                this.angle = Math.random() * Math.PI * 2;
+                this.radius = 20 + Math.random() * 40;
+                this.z = -150;
+                
+                // Orbital parameters
+                this.orbitSpeed = 0.02 + Math.random() * 0.01;
+                this.targetRadius = 40 + Math.random() * 150;
+                this.currentRadius = this.radius;
+                
+                this.trail = [];
+                this.maxTrailLength = 300;
+                this.delay = delay;
+                this.age = 0;
+                this.opacity = 0;
+                this.targetOpacity = 1;
+                
+                // Distinct different colors for each string
+                const colors = [
+                    { hue: 280, sat: 80, light: 65 }, // Purple
+                    { hue: 160, sat: 75, light: 60 }, // Green
+                    { hue: 30, sat: 90, light: 60 },  // Orange
+                    { hue: 200, sat: 85, light: 65 }, // Blue
+                    { hue: 340, sat: 80, light: 60 }, // Pink
+                    { hue: 60, sat: 85, light: 60 },  // Yellow
+                    { hue: 180, sat: 70, light: 60 }, // Cyan
+                    { hue: 10, sat: 85, light: 55 }   // Red
+                ];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                
+                this.phase = 'falling'; // falling, accelerating, orbiting
+                this.accelerationProgress = 0; // 0 to 1, how far through acceleration
+            }
+
+            update() {
+                if (this.age < this.delay) {
+                    this.age++;
+                    return;
+                }
+
+                if (this.opacity < this.targetOpacity) {
+                    this.opacity += 0.015;
+                }
+
+                // Calculate position
+                let x, y, z;
+
+                if (this.phase === 'falling') {
+                    // Fall from above while starting to spiral
+                    this.z += 2;
+                    this.angle += this.orbitSpeed * 0.3;
+                    
+                    x = Math.cos(this.angle) * this.radius;
+                    y = Math.sin(this.angle) * this.radius * 0.3;
+                    z = this.z;
+
+                    if (this.z > -50) {
+                        this.phase = 'accelerating';
+                        this.accelerationProgress = 0;
+                    }
+                }
+                else if (this.phase === 'accelerating') {
+                    // Smooth transition to target radius over time
+                    this.accelerationProgress += 0.008; // Slower progression for smoothness
+                    
+                    if (this.accelerationProgress >= 1) {
+                        this.accelerationProgress = 1;
+                        this.phase = 'orbiting';
+                    }
+
+                    // Smooth easing function for radius transition (ease-in-out cubic)
+                    const t = this.accelerationProgress;
+                    const easeT = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    
+                    // Interpolate between current and target radius
+                    this.currentRadius = this.radius + (this.targetRadius - this.radius) * easeT;
+                    
+                    // Smooth z approach to 0
+                    this.z = -40 + (40 * easeT);
+                    
+                    // Gradual orbit speed increase - smoother progression
+                    const speedFactor = 300 / this.currentRadius;
+                    this.angle += this.orbitSpeed * (0.3 + speedFactor * 0.3);
+                    
+                    x = Math.cos(this.angle) * this.currentRadius;
+                    y = Math.sin(this.angle) * this.currentRadius * 0.25;
+                    z = Math.sin(this.angle) * 3;
+                }
+                else if (this.phase === 'orbiting') {
+                    // Stable orbit in accretion disk
+                    const speedFactor = 300 / this.currentRadius;
+                    this.angle += this.orbitSpeed * speedFactor;
+                    
+                    // Very subtle perturbations
+                    this.currentRadius += Math.sin(this.age * 0.02) * 0.1;
+                    
+                    x = Math.cos(this.angle) * this.currentRadius;
+                    y = Math.sin(this.angle) * this.currentRadius * 0.25;
+                    z = Math.sin(this.angle * 2) * 8;
+                }
+
+                // Convert to screen coordinates
+                const scale = 1.1;
+                const screenX = centerX + x * scale;
+                const screenY = centerY + y * scale + z * 0.9;
+                const depth = z;
+
+                this.trail.push({ x: screenX, y: screenY, z: depth, radius: this.currentRadius });
+
+                if (this.trail.length > this.maxTrailLength) {
+                    this.trail.shift();
+                }
+
+                this.age++;
+            }
+
+            draw() {
+                if (this.age < this.delay || this.trail.length < 2) return;
+
+                for (let i = 1; i < this.trail.length; i++) {
+                    const current = this.trail[i];
+                    const previous = this.trail[i - 1];
+                    
+                    // Calculate opacity based on trail position
+                    const trailOpacity = (i / this.trail.length) * this.opacity;
+                    
+                    // Use the string's assigned color
+                    const hue = this.color.hue;
+                    const saturation = this.color.sat;
+                    const lightness = this.color.light;
+                    
+                    // Adjust for depth (z-axis)
+                    const depthBrightness = 1 + (current.z / 50);
+                    
+                    ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${lightness * depthBrightness}%, ${trailOpacity * 0.8})`;
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 0;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(previous.x, previous.y);
+                    ctx.lineTo(current.x, current.y);
+                    ctx.stroke();
+                }
+
+                // Draw the current point
+                if (this.trail.length > 0) {
+                    const current = this.trail[this.trail.length - 1];
+                    const hue = this.color.hue;
+                    const saturation = this.color.sat;
+                    const lightness = this.color.light;
+                    
+                    ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${this.opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(current.x, current.y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function initStrings() {
+            for (let i = 0; i < maxStrings; i++) {
+                strings.push(new AccretionString(i * 8));
+            }
+        }
+
+        function animate() {
+            // Subtle fade for trails
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Update and draw strings
+            strings.forEach(string => {
+                string.update();
+                string.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        initStrings();
+        animate();
+    </script>
+</body>
+</html>
